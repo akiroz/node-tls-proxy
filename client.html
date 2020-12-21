@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>TLS Proxy Test Client</title>
+    <style>
+        body, input, button, textarea { font: 12pt monospace; }
+        body, fieldset, label { display: flex; }
+        fieldset, label { flex-direction: column; }
+        input, button, textarea { margin: 0.2rem; }
+        fieldset.proxy { width: 25rem; }
+    </style>
+</head>
+<body>
+    <fieldset class="proxy">
+        <legend class="proxy">Proxy (localhost:3000)</legend>
+        <label>
+            CA Certificate (PEM)
+            <input type="file" class="ca">
+        </label>
+        <label>
+            Client Certificate (PEM)
+            <input type="file" class="cert">
+        </label>
+        <label>
+            Client Key (PEM)
+            <input type="file" class="key">
+        </label>
+        <input type="text" placeholder="host" class="host">
+        <input type="number" placeholder="port" class="port">
+        <button class="config">Config</button>
+        <button class="test">Test</button>
+        Note: Open console for logs / errors
+    </fieldset>
+    <fieldset>
+        <legend>Websocket (localhost:3100)</legend>
+        <button class="connect">Connect</button>
+        <input type="text" class="send" placeholder="Send">
+        <textarea placeholder="Receive" cols="30" rows="10"></textarea>
+    </fieldset>
+    <script>
+        document.querySelector("button.config").onclick = async () => {
+            const host = document.querySelector("input.host").value;
+            const port = parseInt(document.querySelector("input.port").value);
+            const [ caFile ] = document.querySelector("input.ca").files;
+            const [ keyFile ] = document.querySelector("input.key").files;
+            const [ certFile ] = document.querySelector("input.cert").files;
+            if(host.length <= 0) {
+                console.warn("Missing Host");
+                return;
+            }
+            if(!Number.isInteger(port)) {
+                console.warn("Invalid Port", port);
+                return;
+            }
+            if(!caFile) {
+                console.warn("Missing CA Certificate");
+                return;
+            }
+            if(!keyFile) {
+                console.warn("Missing Client Key");
+                return;
+            }
+            if(!certFile) {
+                console.warn("Missing Client Certificate");
+                return;
+            }
+            const [ ca, key, cert ] = await Promise.all([
+                caFile.text(),
+                keyFile.text(),
+                certFile.text(),
+            ]);
+            console.log(`Config ${host}:${port}`);
+            console.log("CA Cert:\n", ca);
+            console.log("Client Cert:\n", cert);
+            console.log("Client Key:\n", key);
+            const resp = await fetch("http://localhost:3000/proxy-config", {
+                method: "POST",
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ host, port, ca, key, cert }),
+            });
+            console.log(resp);
+        };
+        
+        document.querySelector("button.test").onclick = async () => {
+            const resp = await fetch("http://localhost:3000/proxy-test");
+            console.log(resp);
+        };
+        
+        let socket = null;
+        document.querySelector("button.connect").onclick = () => {
+            socket = new WebSocket("ws://localhost:3100");
+            socket.addEventListener("error", console.warn);
+            socket.addEventListener("open", () => console.log("Websocket Open"));
+            socket.addEventListener("close", () => console.log("Websocket Close"));
+            socket.addEventListener("message", ({ data }) => {
+                document.querySelector("textarea").value += data;
+            });
+        };
+
+        document.querySelector("input.send").oninput = ({ data }) => {
+            if(!socket || socket.readyState !== WebSocket.OPEN) return;
+            if(!data) return
+            socket.send(data);
+        };
+
+    </script>
+</body>
+</html>
