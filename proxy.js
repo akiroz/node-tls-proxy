@@ -21,9 +21,8 @@ server({ port: 3000, security: false, session: false }, cors, [
         try {
             proxyConfig = {
                 host, port,
-                secureContext: tls.createSecureContext({
-                    ca, cert, key, rejectUnauthorized
-                })
+                rejectUnauthorized: rejectUnauthorized !== false
+                secureContext: tls.createSecureContext({ ca, cert, key })
             };
         } catch(err) {
             return server.reply.status(400).json(err);
