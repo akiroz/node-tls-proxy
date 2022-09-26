@@ -58,7 +58,7 @@ function connHandler(stream) {
 
 const tcpServer = net.createServer();
 const httpServer = http.createServer();
-const wsServer = websocket.createServer({ perMessageDeflate: false, server: this.httpServer });
+const wsServer = websocket.createServer({ perMessageDeflate: false, server: httpServer });
 
 tcpServer.on("connection", connHandler);
 wsServer.on("stream", connHandler);
